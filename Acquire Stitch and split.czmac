@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Script>
+  <Context>Zen26</Context>
+  <Version>1.0</Version>
+  <Language>Python</Language>
+  <Text>## activate IO library
+import os
+from System.IO import File, Directory, FileInfo, Path
+
+
+# delay for specific hardware movements in [seconds]
+hwdelay = 1
+ 
+def getshortfiles(filelist):
+    files_short = []
+    for short in filelist:
+        files_short.append(Path.GetFileName(short))
+
+    return files_short
+
+## Remove all open images
+Zen.Application.Documents.RemoveAll()
+docfolder = Zen.Application.Environment.GetFolderPath(ZenSpecialFolder.UserDocuments)
+expfiles = Directory.GetFiles(Path.Combine(docfolder, 'Experiment Setups'), '*.czexp')
+expfiles_short = getshortfiles(expfiles)
+
+window = ZenWindow()
+Images = Zen.Application.Environment.GetFolderPath(ZenSpecialFolder.Images)
+window.AddFolderBrowser('destpath','DestinationFolder:  ',Images)
+window.AddTextBox('tval','Enter sample name:','sample')
+window.AddDropDown('exp', 'Select the tille setting:                 ',expfiles_short,2)
+window.AddDropDown('ddval','Image type:               ',['.CZI', '.JPEG', '.BMP', '.TIFF'],0)
+
+## do setup
+result=window.Show()
+## check, if Cancel button was clicked
+if result.HasCanceled == True:
+    sys.exit('Macro aborted with Cancel!')
+## get string name of path
+path = result.GetValue('destpath')
+Samplename =result.GetValue('tval')
+## Check, if path exists
+if (Directory.Exists(path)== False):
+    strMessage = 'Path: ' + path + ' does not exist!\nRestart macro and select an existing path!'
+    sys.exit(strMessage)
+
+imageType = result.GetValue('ddval')
+#image = Zen.Application.Documents.ActiveDocument
+zexp=str(result.GetValue('exp'))
+print(zexp)
+0
+## Load experiment
+exp = ZenExperiment()
+## Load experiment
+test=zexp
+exp.Load(test,ZenSettingDirectory.User)
+
+
+
+
+output_Scan = Zen.Acquisition.Execute(exp)
+
+image = Zen.Application.Documents.ActiveDocument
+
+OrgFileName = image.Name.Substring(0,image.Name.Length-4)
+
+processingsetting1 = Zen.Processing.Transformation.Settings.StitchingSetting()
+processingsetting1.Inplace = False
+processingsetting1.SetReferenceStitchingPlane(ZenImageDimension.S, 0)
+processingsetting1.SetOtherPlanesStitchingMode(ZenImageDimension.S, ZenOtherPlanesStitchingMode.AllIndividually)
+processingsetting1.FuseTiles = True
+processingsetting1.CorrectShading = False
+processingsetting1.Parameters.EdgeDetector = False
+processingsetting1.Parameters.MinimalOverlap = 5
+processingsetting1.Parameters.MaxShift = 10
+processingsetting1.Parameters.Comparer = ZenStitchingComparer.Optimized
+processingsetting1.Parameters.GlobalOptimizer = ZenStitchingGlobalOptimizerMode.Best
+image2 = Zen.Processing.Transformation.Geometric.Stitching(image, None, processingsetting1)
+Zen.Application.Documents.Add(image2)
+# Could not record setting for SplitScenesWithOutputs
+outputImages1 = Zen.Processing.Utilities.SplitScenesToArray(image2)
+count = 0
+
+for image in outputImages1:
+   Zen.Application.Documents.Add(image)
+   imagePathAndFile = Path.Combine(path,Samplename+str(count+1))
+   Zen.Application.Save(image,imagePathAndFile+imageType)
+   count= count+1
+   image.Close()
+# *************** End of Code Block *****************
+</Text>
+  <Author></Author>
+  <Description></Description>
+  <Keywords></Keywords>
+  <Row>85</Row>
+  <Column>54</Column>
+</Script>
